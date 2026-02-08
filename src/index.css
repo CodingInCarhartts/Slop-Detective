@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-paper: #e3ddd3;
+  --color-paper-dark: #d1c8b8;
+  --color-ink: #111111;
+  --color-alert: #ff2a00;
+  --color-highlight: #ccff00;
+  --color-tape: #f7e7ce;
+  --color-blue-ink: #0026ff;
+  
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-paper);
+  --color-secondary: var(--color-paper-dark);
+  --color-muted: var(--color-paper-dark);
+  --color-muted-foreground: #666;
+  --color-accent: var(--color-highlight);
+  --color-destructive: var(--color-alert);
+  --color-border: var(--color-ink);
+
+  --font-display: "Arial Black", "Avenir Next Condensed", "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  
+  --radius-lg: 0px;
+  --radius-md: 0px;
+  --radius-sm: 0px;
+}
+
+@layer base {
+  :root {
+    --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+    cursor: crosshair;
+  }
+  
+  body {
+    background-color: #222;
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .texture-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: var(--grain);
+    pointer-events: none;
+    z-index: 1;
+    mix-blend-mode: multiply;
+  }
+
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.4) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .scanline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--color-alert);
+    opacity: 0.5;
+    z-index: 3;
+    animation: scan 4s linear infinite;
+    box-shadow: 0 0 10px var(--color-alert);
+  }
+
+  .tape {
+    position: absolute;
+    width: 120px;
+    height: 35px;
+    background-color: rgba(247, 231, 206, 0.6);
+    border-left: 1px dashed rgba(0,0,0,0.1);
+    border-right: 1px dashed rgba(0,0,0,0.1);
+    top: -15px;
+    right: -30px;
+    transform: rotate(30deg);
+    z-index: 4;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .coffee-stain {
+    position: absolute;
+    bottom: 50px;
+    right: -20px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 8px solid rgba(87, 59, 12, 0.08);
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: 4;
+    transform: scaleY(0.8);
+  }
+
+  .stamp-border {
+    border: 4px solid currentColor;
+    padding: 5px 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    transform: rotate(-15deg);
+    mix-blend-mode: multiply;
+  }
+}
+
+@keyframes scan {
+  0% { top: -10%; }
+  100% { top: 110%; }
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+body.popup-body {
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
+  height: 600px;
+  min-height: 600px;
+  max-height: 600px;
+  margin: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#app {
+  width: 400px;
+  height: 600px;
+  background-color: var(--color-paper);
+  position: relative;
+  box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  overflow: hidden;
+  border: 1px solid #000;
+}
+
+.popup-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-shell.dark-mode {
+  --color-paper: #1b1b1b;
+  --color-paper-dark: #2a2a2a;
+  --color-ink: #f3f3f3;
+  --color-alert: #ff6b4a;
+  --color-highlight: #9ec400;
+  --color-blue-ink: #78a2ff;
+}
+
+/* Custom scrollbar - Ink style */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
