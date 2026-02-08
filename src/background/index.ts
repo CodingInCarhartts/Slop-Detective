@@ -17,14 +17,15 @@ const FILE_FETCH_CONCURRENCY = 4
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ANALYZE_REPO') {
-    handleAnalyzeRepo(message.payload, sender.tab?.id)
+    const requestedTabId = typeof message.payload?.tabId === 'number' ? message.payload.tabId : undefined
+    handleAnalyzeRepo(message.payload, requestedTabId ?? sender.tab?.id)
       .then((result) => sendResponse({ success: true, data: result }))
       .catch((error: Error) => sendResponse({ success: false, error: mapError(error) }))
     return true
   }
 })
 
-async function handleAnalyzeRepo(payload: { owner: string; repo: string }, senderTabId?: number): Promise<RepoAnalysis> {
+async function handleAnalyzeRepo(payload: { owner: string; repo: string; tabId?: number }, senderTabId?: number): Promise<RepoAnalysis> {
   const { owner, repo } = payload
   const repoId = `${owner}/${repo}`
   const token = await getToken()

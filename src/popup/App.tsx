@@ -104,7 +104,7 @@ function App() {
       const repo = pathParts[1]
       const response = await chrome.runtime.sendMessage({
         type: 'ANALYZE_REPO',
-        payload: { owner, repo },
+        payload: { owner, repo, tabId: tab.id },
       })
 
       if (!response.success) {
@@ -114,6 +114,16 @@ function App() {
       }
 
       const result = response.data as RepoAnalysis
+      if (typeof tab.id === 'number') {
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'ANALYSIS_UPDATE',
+            payload: result,
+          })
+        } catch {
+          // Content script may not be ready; popup still shows results.
+        }
+      }
       setAnalysis(result)
       setView('analysis')
       setLoading(false)

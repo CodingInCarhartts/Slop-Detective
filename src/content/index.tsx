@@ -1,5 +1,7 @@
 // AI Slop Meter Content Script Initialized
 
+import { getSettings } from '../lib/storage'
+
 let badgeContainer: HTMLElement | null = null
 let lastUrl = window.location.href
 let isAnalyzing = false
@@ -8,6 +10,7 @@ let currentRepoId: string | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let badgeRetryTimer: ReturnType<typeof setInterval> | null = null
 let pendingBadge: { label: string; tone: BadgeTone } | null = null
+let currentBadge: { label: string; tone: BadgeTone } | null = null
 
 type BadgeTone = 'loading' | 'low' | 'moderate' | 'high'
 
@@ -33,21 +36,33 @@ function findHeader(): Element | null {
   )
 }
 
+function findBadgeMountPoint(): { parent: Element; before: Element | null } | null {
+  const header = findHeader()
+  if (!header || !header.parentElement) return null
+
+  let before = header.nextElementSibling
+  while (before && (before.tagName === 'SCRIPT' || before.tagName === 'STYLE')) {
+    before = before.nextElementSibling
+  }
+
+  return { parent: header.parentElement, before }
+}
+
 function buildBadgeMarkup(label: string, tone: BadgeTone): string {
   const style = badgeStyle(tone)
   return `
     <div class="ai-slop-meter-badge" style="
       display: inline-flex;
       align-items: center;
-      padding: 4px 12px;
+      padding: 6px 14px;
       border-radius: 9999px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      margin-left: 8px;
       background-color: ${style.background};
       color: ${style.color};
       border: 1px solid ${style.border};
       white-space: nowrap;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     ">
       <span>${label}</span>
     </div>
@@ -55,28 +70,29 @@ function buildBadgeMarkup(label: string, tone: BadgeTone): string {
 }
 
 function mountBadge(label: string, tone: BadgeTone): boolean {
-  const header = findHeader()
-  if (!header) return false
-
-  const actionsContainer = header.querySelector('ul.pagehead-actions, [class*="actions"]')
+  const mountPoint = findBadgeMountPoint()
+  if (!mountPoint) return false
 
   if (!badgeContainer || !badgeContainer.isConnected) {
     badgeContainer = document.createElement('div')
-    badgeContainer.className = 'd-flex flex-items-center ml-3 ai-slop-meter-container'
+    badgeContainer.className = 'container-xl px-md-4 px-lg-5 px-3 ai-slop-meter-container'
+    badgeContainer.style.cssText = 'margin: 12px auto 14px auto; display: flex; align-items: center;'
   }
 
   badgeContainer.innerHTML = buildBadgeMarkup(label, tone)
 
-  if (actionsContainer) {
-    actionsContainer.prepend(badgeContainer)
+  const { parent, before } = mountPoint
+  if (before) {
+    parent.insertBefore(badgeContainer, before)
   } else {
-    header.appendChild(badgeContainer)
+    parent.appendChild(badgeContainer)
   }
 
-  return true
+  return badgeContainer.isConnected
 }
 
 function injectBadge(label: string, tone: BadgeTone) {
+  currentBadge = { label, tone }
   pendingBadge = { label, tone }
   if (mountBadge(label, tone)) {
     pendingBadge = null
@@ -84,8 +100,9 @@ function injectBadge(label: string, tone: BadgeTone) {
 }
 
 function retryPendingBadge() {
-  if (!pendingBadge) return
-  if (mountBadge(pendingBadge.label, pendingBadge.tone)) {
+  const badgeToRender = pendingBadge || currentBadge
+  if (!badgeToRender) return
+  if (mountBadge(badgeToRender.label, badgeToRender.tone)) {
     pendingBadge = null
   }
 }
@@ -153,11 +170,23 @@ function handleUrlChange() {
 
   lastUrl = currentUrl
   currentRepoId = null
+  currentBadge = null
+  pendingBadge = null
   if (badgeContainer && badgeContainer.isConnected) {
     badgeContainer.remove()
   }
 
-  void analyzeRepo()
+  // Only auto-analyze on URL change if autoAnalyze is enabled
+  void shouldAutoAnalyze().then(shouldAnalyze => {
+    if (shouldAnalyze) {
+      void analyzeRepo()
+    }
+  })
+}
+
+async function shouldAutoAnalyze(): Promise<boolean> {
+  const settings = await getSettings()
+  return settings.autoAnalyze
 }
 
 function setupNavigationListeners() {
@@ -195,18 +224,30 @@ function setupNavigationListeners() {
 
 chrome.runtime.onMessage.addListener((message: { type?: string; payload?: { repoId: string; slopScore: number; stage: 'provisional' | 'final' } }) => {
   if (message.type !== 'ANALYSIS_UPDATE' || !message.payload) return
-  if (!currentRepoId || message.payload.repoId !== currentRepoId) return
+
+  const repo = getCurrentRepo()
+  if (!repo || message.payload.repoId !== repo.repoId) return
+
+  currentRepoId = repo.repoId
   renderAnalysisBadge(message.payload.slopScore, message.payload.stage)
 })
 
+// Initialize: check autoAnalyze setting before running initial analysis
+async function initialize() {
+  setupNavigationListeners()
+  
+  const settings = await getSettings()
+  if (settings.autoAnalyze) {
+    void analyzeRepo()
+  }
+}
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    setupNavigationListeners()
-    void analyzeRepo()
+    void initialize()
   })
 } else {
-  setupNavigationListeners()
-  void analyzeRepo()
+  void initialize()
 }
 
 window.addEventListener('beforeunload', () => {
