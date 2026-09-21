@@ -51,7 +51,7 @@ function findBadgeMountPoint(): { parent: Element; before: Element | null } | nu
 function buildBadgeMarkup(label: string, tone: BadgeTone): string {
   const style = badgeStyle(tone)
   return `
-    <div class="ai-slop-meter-badge" style="
+    <div class="${BADGE_CLASS}" style="
       display: inline-flex;
       align-items: center;
       padding: 6px 14px;
@@ -69,16 +69,30 @@ function buildBadgeMarkup(label: string, tone: BadgeTone): string {
   `
 }
 
+const BADGE_CONTAINER_CLASS = 'ai-slop-meter-container'
+const BADGE_CLASS = 'ai-slop-meter-badge'
+
+/**
+ * Removes all existing badge containers from the DOM.
+ * This ensures no duplicate badges are created during navigation.
+ */
+function removeExistingBadges(): void {
+  const existingContainers = document.querySelectorAll(`.${BADGE_CONTAINER_CLASS}`)
+  existingContainers.forEach(container => container.remove())
+}
+
 function mountBadge(label: string, tone: BadgeTone): boolean {
   const mountPoint = findBadgeMountPoint()
   if (!mountPoint) return false
 
-  if (!badgeContainer || !badgeContainer.isConnected) {
-    badgeContainer = document.createElement('div')
-    badgeContainer.className = 'container-xl px-md-4 px-lg-5 px-3 ai-slop-meter-container'
-    badgeContainer.style.cssText = 'margin: 12px auto 14px auto; display: flex; align-items: center;'
-  }
+  // Always remove any existing badges before creating a new one
+  // This handles cases where the badgeContainer reference becomes stale
+  removeExistingBadges()
 
+  // Create a fresh container
+  badgeContainer = document.createElement('div')
+  badgeContainer.className = `container-xl px-md-4 px-lg-5 px-3 ${BADGE_CONTAINER_CLASS}`
+  badgeContainer.style.cssText = 'margin: 12px auto 14px auto; display: flex; align-items: center;'
   badgeContainer.innerHTML = buildBadgeMarkup(label, tone)
 
   const { parent, before } = mountPoint
@@ -172,9 +186,10 @@ function handleUrlChange() {
   currentRepoId = null
   currentBadge = null
   pendingBadge = null
-  if (badgeContainer && badgeContainer.isConnected) {
-    badgeContainer.remove()
-  }
+
+  // Thorough cleanup: remove all existing badges and clear the reference
+  removeExistingBadges()
+  badgeContainer = null
 
   // Only auto-analyze on URL change if autoAnalyze is enabled
   void shouldAutoAnalyze().then(shouldAnalyze => {
